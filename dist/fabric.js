@@ -1509,7 +1509,7 @@ fabric.Collection = {
      * Cross-browser approximation of ES5 Function.prototype.bind (not fully spec conforming)
      * @see <a href="https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Function/bind">Function#bind on MDN</a>
      * @param {Object} thisArg Object to bind function to
-     * @param {Any[]} [...] Values to pass to a bound function
+     * @param {Any[]} Values to pass to a bound function
      * @return {Function}
      */
     Function.prototype.bind = function(thisArg) {
@@ -5724,6 +5724,14 @@ fabric.Pattern = fabric.util.createClass(/** @lends fabric.Pattern.prototype */ 
     backgroundImage: null,
 
     /**
+     * Flood fill color within background image of canvas instance.
+     * Should be set via {@link fabric.StaticCanvas#setFloodFillColor}.
+     * @type {(String|fabric.Pattern)}
+     * @default
+     */
+    floodFillColor: '',
+
+    /**
      * Overlay color of canvas instance.
      * Should be set via {@link fabric.StaticCanvas#setOverlayColor}
      * @since 1.3.9
@@ -5846,6 +5854,9 @@ fabric.Pattern = fabric.util.createClass(/** @lends fabric.Pattern.prototype */ 
       }
       if (options.backgroundColor) {
         this.setBackgroundColor(options.backgroundColor, this.renderAll.bind(this));
+      }
+      if (options.floodFillColor) {
+        this.setFloodFillColor(options.floodFillColor, this.renderAll.bind(this));
       }
       if (options.overlayColor) {
         this.setOverlayColor(options.overlayColor, this.renderAll.bind(this));
@@ -6028,6 +6039,30 @@ fabric.Pattern = fabric.util.createClass(/** @lends fabric.Pattern.prototype */ 
      */
     setBackgroundColor: function(backgroundColor, callback) {
       return this.__setBgOverlayColor('backgroundColor', backgroundColor, callback);
+    },
+
+    /**
+     * Sets {@link fabric.StaticCanvas#floodFillColor|flood fill color} for this canvas and overlap with background image
+     * @param {(String|fabric.Pattern)} floodFillColor Color or pattern to set flood fill color to
+     * @param {Function} callback Callback to invoke when flood fill color is set
+     * @return {fabric.Canvas} thisArg
+     * @chainable
+     * @example <caption>Normal floodFillColor - color value</caption>
+     * canvas.setFloodFillColor('rgba(255, 73, 64, 0.6)', canvas.renderAll.bind(canvas));
+     * @example <caption>fabric.Pattern used as floodFillColor</caption>
+     * canvas.setFloodFillColor({
+     *   source: 'http://fabricjs.com/assets/escheresque_ste.png'
+     * }, canvas.renderAll.bind(canvas));
+     * @example <caption>fabric.Pattern used as floodFillColor with repeat and offset</caption>
+     * canvas.setFloodFillColor({
+     *   source: 'http://fabricjs.com/assets/escheresque_ste.png',
+     *   repeat: 'repeat',
+     *   offsetX: 200,
+     *   offsetY: 100
+     * }, canvas.renderAll.bind(canvas));
+     */
+    setFloodFillColor: function(floodFillColor, callback) {
+      return this.__setBgOverlayColor('floodFillColor', floodFillColor, callback);
     },
 
     /**
@@ -6603,7 +6638,28 @@ fabric.Pattern = fabric.util.createClass(/** @lends fabric.Pattern.prototype */ 
      * @param {CanvasRenderingContext2D} ctx Context to render on
      */
     _renderBackground: function(ctx) {
+      if (this.backgroundImage) {
+        this._draw(ctx, this.backgroundImage);
+      }
+      if (this.floodFillColor) {
+        ctx.save();
+        //draw flood fill overlap with background image
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.fillStyle = this.floodFillColor.toLive
+          ? this.floodFillColor.toLive(ctx)
+          : this.floodFillColor;
+
+        ctx.fillRect(
+          this.floodFillColor.offsetX || 0,
+          this.floodFillColor.offsetY || 0,
+          this.width,
+          this.height);
+        ctx.restore();
+      }
       if (this.backgroundColor) {
+        ctx.save();
+        //draw background color behind background image
+        ctx.globalCompositeOperation = 'destination-over';
         ctx.fillStyle = this.backgroundColor.toLive
           ? this.backgroundColor.toLive(ctx)
           : this.backgroundColor;
@@ -6613,9 +6669,7 @@ fabric.Pattern = fabric.util.createClass(/** @lends fabric.Pattern.prototype */ 
           this.backgroundColor.offsetY || 0,
           this.width,
           this.height);
-      }
-      if (this.backgroundImage) {
-        this._draw(ctx, this.backgroundImage);
+        ctx.restore();
       }
     },
 
@@ -21195,8 +21249,6 @@ fabric.Image.filters.BaseFilter = fabric.util.createClass(/** @lends fabric.Imag
 
         this._renderCharDecoration(ctx, decl, left, top, offset, charWidth, charHeight);
         ctx.restore();
-
-        ctx.translate(charWidth, 0);
       }
       else {
         if (method === 'strokeText' && this.stroke) {
@@ -21207,9 +21259,8 @@ fabric.Image.filters.BaseFilter = fabric.util.createClass(/** @lends fabric.Imag
         }
         charWidth = this._applyCharStylesGetWidth(ctx, _char, lineIndex, i);
         this._renderCharDecoration(ctx, null, left, top, offset, charWidth, this.fontSize);
-
-        ctx.translate(ctx.measureText(_char).width, 0);
       }
+      ctx.translate(charWidth, 0);
     },
 
     /**
@@ -21977,7 +22028,7 @@ fabric.Image.filters.BaseFilter = fabric.util.createClass(/** @lends fabric.Imag
     /**
      * Finds index corresponding to beginning or end of a word
      * @param {Number} selectionStart Index of a character
-     * @param {Number} direction: 1 or -1
+     * @param {Number} direction 1 or -1
      * @return {Number} Index of the beginning or end of a word
      */
     searchWordBoundary: function(selectionStart, direction) {
