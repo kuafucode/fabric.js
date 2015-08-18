@@ -90,6 +90,14 @@
     overlayImage: null,
 
     /**
+     * Overlay image of canvas instance.
+     * Should be set via {@link fabric.StaticCanvas#setOverlayMask}.
+     * @type fabric.Image
+     * @default
+     */
+    overlayMask: null,
+
+    /**
      * Indicates whether toObject/toDatalessObject should include default values
      * @type Boolean
      * @default
@@ -184,6 +192,9 @@
         this._initRetinaScaling();
       }
 
+      if (options.overlayMask) {
+        this.setOverlayMask(options.overlayMask, this.renderAll.bind(this));
+      }
       if (options.overlayImage) {
         this.setOverlayImage(options.overlayImage, this.renderAll.bind(this));
       }
@@ -227,6 +238,15 @@
       return this;
     },
 
+    setOverlayMask: function (image, callback, options) {
+      if(!options) {
+        options = {globalCompositeOperation: 'destination-out'};
+      }
+      else {
+        options.globalCompositeOperation = 'destination-out';
+      }
+      return this.__setBgOverlayImage('overlayMask', image, callback, options);
+    },
     /**
      * Sets {@link fabric.StaticCanvas#overlayImage|overlay image} for this canvas
      * @param {(fabric.Image|String)} image fabric.Image instance or URL of an image to set overlay to
@@ -1016,6 +1036,35 @@
      * @param {CanvasRenderingContext2D} ctx Context to render on
      */
     _renderOverlay: function(ctx) {
+      //draw mask
+      if (this.overlayMask) {
+        if (this.backgroundColor) {
+          //TODO: can optimize by caching mask canvas
+          var maskCanvas = fabric.util.createCanvasElement();
+          maskCanvas.width = this.width;
+          maskCanvas.height = this.height;
+          var ctx1 = maskCanvas.getContext('2d');
+          ctx1.fillStyle = this.backgroundColor.toLive
+            ? this.backgroundColor.toLive(ctx1)
+            : this.backgroundColor;
+
+          ctx1.fillRect(
+            this.backgroundColor.offsetX || 0,
+            this.backgroundColor.offsetY || 0,
+            this.width,
+            this.height);
+          var v = this.viewportTransform;
+          ctx1.transform(v[0], v[1], v[2], v[3], v[4], v[5]);
+          if (this._shouldRenderObject(this.overlayMask)) {
+            this.overlayMask.render(ctx1);
+          }
+          ctx.save();
+          ctx.globalAlpha = 0.75;
+          ctx.drawImage(maskCanvas, 0, 0);
+          ctx.restore();
+        }
+      }
+
       if (this.overlayColor) {
         ctx.fillStyle = this.overlayColor.toLive
           ? this.overlayColor.toLive(ctx)
