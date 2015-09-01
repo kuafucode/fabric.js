@@ -98,6 +98,14 @@
     overlayMask: null,
 
     /**
+     * Function that runs after overlay rendered
+     * Being passed overlay context as first argument.
+     * @type Function
+     * @default
+     */
+    overlayCallback: null,
+
+    /**
      * Indicates whether toObject/toDatalessObject should include default values
      * @type Boolean
      * @default
@@ -1078,6 +1086,10 @@
       }
       if (this.overlayImage) {
         this._draw(ctx, this.overlayImage);
+      }
+
+      if (this.overlayCallback) {
+        this.overlayCallback.call(this, ctx);
       }
     },
 
