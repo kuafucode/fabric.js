@@ -428,7 +428,9 @@
      * }, canvas.renderAll.bind(canvas));
      */
     setFloodFillColor: function(floodFillColor, callback) {
-      return this.__setBgOverlayColor('floodFillColor', floodFillColor, callback);
+      this.__setBgOverlayColor('floodFillColor', floodFillColor, callback);
+      this.fire('canvas:floodfillcolor:changed');
+      return this;
     },
 
     /**
